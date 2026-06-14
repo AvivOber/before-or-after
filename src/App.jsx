@@ -48,6 +48,23 @@ function useShared() {
   return state;
 }
 
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+let SETTINGS = { volume: 0.8, sfx: 0.8 };
+const SETTINGS_SUBS = new Set();
+function setSettings(updater) {
+  SETTINGS = typeof updater === "function" ? updater(SETTINGS) : updater;
+  SETTINGS_SUBS.forEach(fn => fn({ ...SETTINGS }));
+}
+function useSettings() {
+  const [s, setS] = useState({ ...SETTINGS });
+  useEffect(() => {
+    const h = v => setS({ ...v });
+    SETTINGS_SUBS.add(h);
+    return () => SETTINGS_SUBS.delete(h);
+  }, []);
+  return s;
+}
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function genPin() {
   const c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -83,23 +100,79 @@ export default function App() {
 
 // ─── LANDING ─────────────────────────────────────────────────────────────────
 function Landing({ onHost, onJoin }) {
+  const [showSettings, setShowSettings] = useState(false);
   return (
-    <Screen center bg="deep">
+    <Screen bg="deep" style={{ display:"flex", flexDirection:"column", minHeight:"100vh" }}>
       <style>{GLOBAL_CSS}</style>
-      <div style={S.logoWrap}>
-        <span style={S.logoB}>Before</span>
-        <span style={S.logoOr}> or </span>
-        <span style={S.logoA}>After</span>
+      <button onClick={() => setShowSettings(true)} style={S.settingsBtn}>⚙️</button>
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {/* Header at top */}
+      <div style={{ textAlign:"center", padding:"2.5rem 1rem 0" }}>
+        <div style={S.logoWrap}>
+          <span style={S.logoB}>Before</span>
+          <span style={S.logoOr}> or </span>
+          <span style={S.logoA}>After</span>
+        </div>
+        <p style={S.tagline}>The ultimate music timeline party game</p>
       </div>
-      <p style={S.tagline}>The ultimate music timeline party game</p>
-      <div style={{ display:"flex", gap:"1rem", flexWrap:"wrap", justifyContent:"center" }}>
-        <Btn variant="purple" size="lg" onClick={onHost}>🎮 Host a Game</Btn>
-        <Btn variant="teal"   size="lg" onClick={onJoin}>📱 Join a Game</Btn>
+      {/* Buttons centered in remaining space */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"1rem" }}>
+        <div style={{ display:"flex", gap:"1rem", flexWrap:"wrap", justifyContent:"center" }}>
+          <Btn variant="purple" size="lg" onClick={onHost}>🎮 Host a Game</Btn>
+          <Btn variant="teal"   size="lg" onClick={onJoin}>📱 Join a Game</Btn>
+        </div>
+        <p style={{ color:"#475569", fontSize:"0.85rem" }}>
+          Host on a big screen · Players join on their phones
+        </p>
       </div>
-      <p style={{ color:"#475569", fontSize:"0.85rem", marginTop:"1.5rem" }}>
-        Host on a big screen · Players join on their phones
-      </p>
     </Screen>
+  );
+}
+
+// ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
+function SettingsPanel({ onClose }) {
+  const settings = useSettings();
+  return (
+    <div onClick={onClose} style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.6)",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      zIndex:200, backdropFilter:"blur(4px)",
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background:"#1a1740", border:"1px solid rgba(255,255,255,0.12)",
+        borderRadius:22, padding:"2rem", width:"min(90vw, 380px)",
+        display:"flex", flexDirection:"column", gap:"1.5rem",
+      }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <h2 style={{ color:"#e2e8f0", fontWeight:900, margin:0, fontSize:"1.3rem" }}>⚙️ Settings</h2>
+          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#94a3b8", fontSize:"1.4rem", cursor:"pointer", lineHeight:1 }}>✕</button>
+        </div>
+
+        <SettingBlock label="🔊 Music Volume">
+          <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+            <input type="range" min="0" max="1" step="0.01"
+              value={settings.volume}
+              onChange={e => setSettings(s => ({ ...s, volume: +e.target.value }))}
+              style={{ ...S.slider, flex:1 }} />
+            <span style={{ color:"#a78bfa", fontWeight:700, minWidth:38, textAlign:"right", fontSize:"0.9rem" }}>
+              {Math.round(settings.volume * 100)}%
+            </span>
+          </div>
+        </SettingBlock>
+
+        <SettingBlock label="🎛️ SFX Volume">
+          <div style={{ display:"flex", alignItems:"center", gap:"0.75rem" }}>
+            <input type="range" min="0" max="1" step="0.01"
+              value={settings.sfx}
+              onChange={e => setSettings(s => ({ ...s, sfx: +e.target.value }))}
+              style={{ ...S.slider, flex:1 }} />
+            <span style={{ color:"#a78bfa", fontWeight:700, minWidth:38, textAlign:"right", fontSize:"0.9rem" }}>
+              {Math.round(settings.sfx * 100)}%
+            </span>
+          </div>
+        </SettingBlock>
+      </div>
+    </div>
   );
 }
 
@@ -270,7 +343,7 @@ function HostLobby({ gs, onBack }) {
   }
 
   return (
-    <Screen bg="deep" style={{ padding:"2rem", display:"flex", gap:"2rem", alignItems:"stretch", minHeight:"100vh" }}>
+    <Screen bg="deep" className="lobby-layout" style={{ padding:"2rem", gap:"2rem", minHeight:"100vh" }}>
       <style>{GLOBAL_CSS}</style>
       <BackBtn onClick={onBack} />
       {/* Left panel: PIN */}
@@ -326,11 +399,16 @@ function HostPlaying({ gs, onBack }) {
   const totalPlayers = Object.keys(players).length;
   const answeredCount = Object.keys(answers).length;
   const label = pivotLabel(gs);
+  const settings = useSettings();
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = settings.volume;
+  }, [settings.volume]);
 
   // reset & start timer on each new round
   useEffect(() => {
     setTimeLeft(timer);
-    if (audioRef.current) { audioRef.current.load(); audioRef.current.play().catch(() => {}); }
+    if (audioRef.current) { audioRef.current.load(); audioRef.current.volume = SETTINGS.volume; audioRef.current.play().catch(() => {}); }
     intervalRef.current = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) { clearInterval(intervalRef.current); doReveal(); return 0; }
@@ -783,9 +861,9 @@ function PlayerPodium({ gs, pid, onBack }) {
 }
 
 // ─── SHARED UI COMPONENTS ─────────────────────────────────────────────────────
-function Screen({ children, center, bg, style = {} }) {
+function Screen({ children, center, bg, className, style = {} }) {
   return (
-    <div style={{
+    <div className={className} style={{
       minHeight:"100vh", fontFamily:"'Segoe UI', system-ui, sans-serif",
       background: bg === "deep" ? "linear-gradient(135deg,#0f0a1e 0%,#1e1b4b 55%,#0f172a 100%)" : "#fff",
       ...(center ? { display:"flex", alignItems:"center", justifyContent:"center", padding:"2rem" } : {}),
@@ -922,6 +1000,9 @@ const S = {
   select:     { width:"100%", padding:"0.75rem 0.9rem", borderRadius:10, border:"2px solid rgba(255,255,255,0.1)",
                 background:"rgba(255,255,255,0.07)", color:"#e2e8f0", fontSize:"0.95rem", outline:"none",
                 cursor:"pointer", appearance:"auto" },
+  settingsBtn:{ position:"fixed", top:16, left:16, background:"rgba(255,255,255,0.08)",
+                border:"1px solid rgba(255,255,255,0.12)", color:"#94a3b8", padding:"0.45rem 0.65rem",
+                borderRadius:8, cursor:"pointer", zIndex:100, fontSize:"1.1rem", lineHeight:1 },
 };
 
 // ─── GLOBAL CSS KEYFRAMES ─────────────────────────────────────────────────────
@@ -932,4 +1013,15 @@ const GLOBAL_CSS = `
   button:active { transform: scale(0.97) !important; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0f0a1e; }
+
+  .lobby-layout { display: flex; align-items: stretch; }
+
+  @media (max-width: 700px) {
+    .lobby-layout { flex-direction: column !important; padding: 1rem !important; gap: 1.5rem !important; }
+    .lobby-layout > div:first-child { flex: none !important; width: 100% !important; }
+  }
+  @media (max-width: 480px) {
+    body { font-size: 14px; }
+    input[type="range"] { height: 32px; }
+  }
 `;
