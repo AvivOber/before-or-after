@@ -1,28 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-
-// ─── SONG DATABASE ─────────────────────────────────────────────────────────────
-const SONG_DB = [
-  { id: 1,  title: "Bohemian Rhapsody",    artist: "Queen",            year: 1975, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",  fact: "Took three weeks to record and cost £4,500 — an unheard-of sum at the time." },
-  { id: 2,  title: "Billie Jean",           artist: "Michael Jackson",  year: 1983, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",  fact: "Michael Jackson invented a special weighted shoe to perform the iconic lean." },
-  { id: 3,  title: "Smells Like Teen Spirit",artist: "Nirvana",         year: 1991, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",  fact: "Kurt Cobain described the riff as his attempt to write 'the ultimate pop song'." },
-  { id: 4,  title: "Rolling in the Deep",   artist: "Adele",            year: 2010, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",  fact: "Written in 40 minutes after a breakup. It became the best-selling single of 2011." },
-  { id: 5,  title: "Like a Rolling Stone",  artist: "Bob Dylan",        year: 1965, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",  fact: "Columbia Records hesitated to release a 6-minute single — it became his biggest hit." },
-  { id: 6,  title: "Superstition",          artist: "Stevie Wonder",    year: 1972, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",  fact: "Stevie Wonder wrote it in 30 minutes and played every instrument himself." },
-  { id: 7,  title: "Purple Rain",           artist: "Prince",           year: 1984, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",  fact: "The iconic guitar solo was recorded live in one take in front of a real audience." },
-  { id: 8,  title: "Hey Jude",              artist: "The Beatles",      year: 1968, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",  fact: "Paul McCartney wrote it for John Lennon's son Julian during his parents' divorce." },
-  { id: 9,  title: "Mr. Brightside",        artist: "The Killers",      year: 2003, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",  fact: "It spent a record 286 weeks on the UK Singles Chart across its entire lifespan." },
-  { id: 10, title: "Lose Yourself",         artist: "Eminem",           year: 2002, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3", fact: "Eminem wrote the lyrics on set during filming of 8 Mile, on a paper bag." },
-  { id: 11, title: "Bad Guy",               artist: "Billie Eilish",    year: 2019, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3", fact: "Her brother Finneas produced the entire song in his childhood bedroom." },
-  { id: 12, title: "God's Plan",            artist: "Drake",            year: 2018, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3", fact: "Drake gave away his entire $996,631 video budget to strangers in Miami during filming." },
-  { id: 13, title: "Thriller",              artist: "Michael Jackson",  year: 1982, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",  fact: "The music video cost $500,000 — the most expensive ever made at the time." },
-  { id: 14, title: "Hotel California",      artist: "Eagles",           year: 1977, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",  fact: "Don Felder wrote the iconic riff while doodling on a 12-string acoustic." },
-  { id: 15, title: "Blinding Lights",       artist: "The Weeknd",       year: 2019, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",  fact: "Holds the record for most weeks in the top 10 of the Billboard Hot 100." },
-  { id: 16, title: "Yesterday",             artist: "The Beatles",      year: 1965, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",  fact: "McCartney dreamed the melody and used the placeholder lyrics 'Scrambled eggs'." },
-  { id: 17, title: "Shape of You",          artist: "Ed Sheeran",       year: 2017, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",  fact: "Written in 20 minutes — it was originally intended for Rihanna." },
-  { id: 18, title: "Waterloo",              artist: "ABBA",             year: 1974, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",  fact: "ABBA won Eurovision with this song in 1974, launching their international career." },
-  { id: 19, title: "Born to Run",           artist: "Bruce Springsteen",year: 1975, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",  fact: "Springsteen spent six months perfecting this song, calling it 'the most difficult'." },
-  { id: 20, title: "DNA",                   artist: "Kendrick Lamar",   year: 2017, preview: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",  fact: "Fox News played the video during a segment — Kendrick later turned it against them." },
-];
+import { SONG_DB } from "./data/songs";
 
 // ─── SCORING CONFIG (easy to extend for future stages) ───────────────────────
 const SCORING = {
@@ -30,19 +7,38 @@ const SCORING = {
   // future: speedBonus: (timeLeft, totalTime) => Math.floor(timeLeft / totalTime * 50),
 };
 
-// ─── SHARED IN-MEMORY STATE (simulates a real-time backend) ──────────────────
+// ─── SHARED STATE via BroadcastChannel (works across tabs in same browser) ────
+const BC = new BroadcastChannel("before-or-after");
 let SHARED = null;
 const SUBS = new Set();
+
 function getShared() { return SHARED; }
+
 function setShared(updater) {
   SHARED = typeof updater === "function" ? updater(SHARED) : updater;
-  SUBS.forEach(fn => fn({ ...SHARED }));
+  BC.postMessage({ type: "STATE", state: SHARED });
+  SUBS.forEach(fn => fn(SHARED ? { ...SHARED } : null));
 }
+
+// When another tab updates state, sync into this tab
+BC.onmessage = (e) => {
+  if (e.data.type === "STATE") {
+    SHARED = e.data.state;
+    SUBS.forEach(fn => fn(SHARED ? { ...SHARED } : null));
+  }
+  // A new tab is asking for the current state — respond if we have it
+  if (e.data.type === "REQUEST_STATE" && SHARED !== null) {
+    BC.postMessage({ type: "STATE", state: SHARED });
+  }
+};
+
 function useShared() {
   const [state, setState] = useState(SHARED);
   useEffect(() => {
     const handler = s => setState(s ? { ...s } : null);
     SUBS.add(handler);
+    // Ask other tabs for the current state when this tab first loads
+    BC.postMessage({ type: "REQUEST_STATE" });
     return () => SUBS.delete(handler);
   }, []);
   return state;
@@ -98,6 +94,24 @@ export default function App() {
   );
 }
 
+// ─── BOUNCE LETTERS ──────────────────────────────────────────────────────────
+function BounceLetters({ text, style = {}, offset = 0, animName = "letterWavePurple" }) {
+  return (
+    <>
+      {[...text].map((ch, i) => (
+        <span key={i} style={{
+          ...style,
+          display: "inline-block",
+          animation: `${animName} 1.8s ease-in-out infinite`,
+          animationDelay: `${(offset + i) * 0.09}s`,
+        }}>
+          {ch}
+        </span>
+      ))}
+    </>
+  );
+}
+
 // ─── LANDING ─────────────────────────────────────────────────────────────────
 function Landing({ onHost, onJoin }) {
   const [showSettings, setShowSettings] = useState(false);
@@ -108,10 +122,12 @@ function Landing({ onHost, onJoin }) {
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {/* Header at top */}
       <div style={{ textAlign:"center", padding:"2.5rem 1rem 0" }}>
-        <div style={S.logoWrap}>
-          <span style={S.logoB}>Before</span>
-          <span style={S.logoOr}> or </span>
-          <span style={S.logoA}>After</span>
+        <div style={{ ...S.logoWrap, paddingTop:"36px" }}>
+          <BounceLetters text="Before" style={{ color:"#818cf8" }} offset={0}  animName="letterWavePurple" />
+          {" "}
+          <BounceLetters text="or"     style={{ color:"#94a3b8", fontSize:"0.58em" }} offset={7}  animName="letterWaveGrey" />
+          {" "}
+          <BounceLetters text="After"  style={{ color:"#34d399" }} offset={10} animName="letterWaveGreen" />
         </div>
         <p style={S.tagline}>The ultimate music timeline party game</p>
       </div>
@@ -343,11 +359,11 @@ function HostLobby({ gs, onBack }) {
   }
 
   return (
-    <Screen bg="deep" className="lobby-layout" style={{ padding:"2rem", gap:"2rem", minHeight:"100vh" }}>
+    <Screen bg="deep" className="lobby-layout" style={{ padding:"2.5rem", gap:"3rem", minHeight:"100vh" }}>
       <style>{GLOBAL_CSS}</style>
       <BackBtn onClick={onBack} />
       {/* Left panel: PIN */}
-      <div style={{ flex:"0 0 300px", display:"flex", flexDirection:"column", gap:"1.5rem", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ flex:"0 0 300px", display:"flex", flexDirection:"column", gap:"2rem", alignItems:"center", justifyContent:"center" }}>
         <div style={S.logoSmall}>Before or After</div>
         <div style={{ ...S.card, textAlign:"center", width:"100%", border:"2px solid #7c3aed" }}>
           <p style={{ color:"#94a3b8", fontSize:"0.78rem", textTransform:"uppercase", letterSpacing:"0.1em", margin:0 }}>Room PIN</p>
@@ -380,7 +396,7 @@ function HostLobby({ gs, onBack }) {
             ))
           }
         </div>
-        <Btn variant="purple" size="lg" style={{ width:"100%", marginTop:"1.5rem" }}
+        <Btn variant="purple" size="lg" style={{ width:"100%", marginTop:"2rem" }}
           disabled={players.length === 0} onClick={start}>
           Start Game! 🎮
         </Btn>
@@ -396,6 +412,8 @@ function HostPlaying({ gs, onBack }) {
   const audioRef = useRef(null);
   const intervalRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState(timer);
+  const [allVoted, setAllVoted] = useState(false);
+  const revealedRef = useRef(false);
   const totalPlayers = Object.keys(players).length;
   const answeredCount = Object.keys(answers).length;
   const label = pivotLabel(gs);
@@ -407,6 +425,7 @@ function HostPlaying({ gs, onBack }) {
 
   // reset & start timer on each new round
   useEffect(() => {
+    revealedRef.current = false;
     setTimeLeft(timer);
     if (audioRef.current) { audioRef.current.load(); audioRef.current.volume = SETTINGS.volume; audioRef.current.play().catch(() => {}); }
     intervalRef.current = setInterval(() => {
@@ -418,7 +437,17 @@ function HostPlaying({ gs, onBack }) {
     return () => clearInterval(intervalRef.current);
   }, [currentRound]); // eslint-disable-line
 
+  // Show "all voted" banner for 2 s, then reveal
+  useEffect(() => {
+    if (totalPlayers > 0 && answeredCount >= totalPlayers && !revealedRef.current) {
+      revealedRef.current = true;
+      setAllVoted(true);
+      setTimeout(() => doReveal(), 2000);
+    }
+  }, [answeredCount, totalPlayers]); // eslint-disable-line
+
   function doReveal() {
+    if (revealedRef.current && answeredCount < totalPlayers) return; // guard against stale timer fire
     clearInterval(intervalRef.current);
     if (audioRef.current) audioRef.current.pause();
     const correct = songIsCorrect(song, gs);
@@ -439,7 +468,7 @@ function HostPlaying({ gs, onBack }) {
   const urgent = timeLeft <= 10;
 
   return (
-    <Screen bg="deep" style={{ padding:"2rem", display:"flex", flexDirection:"column", gap:"2rem", minHeight:"100vh" }}>
+    <Screen bg="deep" style={{ padding:"2.5rem", display:"flex", flexDirection:"column", gap:"2.5rem", minHeight:"100vh" }}>
       <style>{GLOBAL_CSS}</style>
       <audio ref={audioRef} src={song.preview} />
       <BackBtn onClick={onBack} />
@@ -477,6 +506,31 @@ function HostPlaying({ gs, onBack }) {
       </div>
 
       <button onClick={doReveal} style={S.ghostBtn}>Skip → Reveal Answer</button>
+
+      {/* All-voted banner */}
+      {allVoted && (
+        <div style={{
+          position:"fixed", inset:0,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          background:"rgba(0,0,0,0.55)", backdropFilter:"blur(6px)",
+          zIndex:300, pointerEvents:"none",
+        }}>
+          <div style={{
+            background:"linear-gradient(135deg,#7c3aed,#4f46e5)",
+            borderRadius:28, padding:"2.5rem 4rem", textAlign:"center",
+            boxShadow:"0 0 80px rgba(124,58,237,0.6)",
+            animation:"popIn 0.45s cubic-bezier(0.175,0.885,0.32,1.275) forwards",
+          }}>
+            <div style={{ fontSize:"3.5rem", marginBottom:"0.75rem" }}>🎉</div>
+            <p style={{ color:"#fff", fontSize:"2rem", fontWeight:900, margin:0, letterSpacing:"-0.02em" }}>
+              All players voted!
+            </p>
+            <p style={{ color:"rgba(255,255,255,0.65)", fontSize:"1rem", margin:"0.75rem 0 0" }}>
+              Revealing answer…
+            </p>
+          </div>
+        </div>
+      )}
     </Screen>
   );
 }
@@ -564,7 +618,7 @@ function HostPodium({ gs, onBack }) {
   function again() { setShared(null); onBack(); }
 
   return (
-    <Screen bg="deep" style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", padding:"2rem 2rem 3rem", gap:"2rem" }}>
+    <Screen bg="deep" style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", padding:"2.5rem 2.5rem 4rem", gap:"2.5rem" }}>
       <style>{GLOBAL_CSS}</style>
       <h1 style={{ ...S.heading, fontSize:"2.8rem", margin:0 }}>🏆 Final Results</h1>
 
@@ -655,7 +709,7 @@ function PlayerJoin({ gs, onBack, onJoin }) {
     <Screen center bg="deep">
       <style>{GLOBAL_CSS}</style>
       <BackBtn onClick={onBack} />
-      <Card style={{ maxWidth:360, width:"90%", gap:"1rem", alignItems:"center" }}>
+      <Card style={{ maxWidth:360, width:"90%", gap:"1.5rem", alignItems:"center" }}>
         <div style={S.logoSmall}>Before or After</div>
         <h2 style={{ color:"#e2e8f0", margin:0 }}>Join Game</h2>
         <input style={S.input} placeholder="Your name" maxLength={20}
@@ -734,7 +788,7 @@ function PlayerPlaying({ gs, pid, name }) {
       </div>
 
       {/* Question */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"0.75rem", padding:"1rem" }}>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"1.25rem", padding:"1.5rem" }}>
         <div style={{ fontSize:"4.5rem", animation:"bob 1.2s ease-in-out infinite alternate" }}>🎵</div>
         <p style={{ color:"#94a3b8", fontSize:"1.05rem", margin:0, textAlign:"center" }}>Was this song released</p>
         <div style={{ color:"#e2e8f0", fontSize: label.length > 8 ? "2rem" : "3.5rem", fontWeight:900, letterSpacing:"-0.03em", textAlign:"center", lineHeight:1.1 }}>{label}</div>
@@ -742,9 +796,9 @@ function PlayerPlaying({ gs, pid, name }) {
       </div>
 
       {/* Buttons or locked state */}
-      <div style={{ padding:"1.25rem", paddingBottom:"2rem" }}>
+      <div style={{ padding:"1.5rem", paddingBottom:"2.5rem" }}>
         {!hasAnswered ? (
-          <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem" }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:"1rem" }}>
             <button onClick={() => answer("before")} style={{ ...S.answerBtn, background:"linear-gradient(135deg,#4f46e5,#7c3aed)" }}>
               <span style={{ fontSize:"1.8rem" }}>⏮</span>
               <div>
@@ -786,7 +840,7 @@ function PlayerReveal({ gs, pid, name }) {
   const totalScore = players[pid]?.score || 0;
 
   return (
-    <Screen bg="deep" style={{ minHeight:"100vh", display:"flex", flexDirection:"column", padding:"1.5rem", gap:"1.25rem" }}>
+    <Screen bg="deep" style={{ minHeight:"100vh", display:"flex", flexDirection:"column", padding:"1.75rem", gap:"1.75rem" }}>
       <style>{GLOBAL_CSS}</style>
 
       {/* Result banner */}
@@ -866,7 +920,7 @@ function Screen({ children, center, bg, className, style = {} }) {
     <div className={className} style={{
       minHeight:"100vh", fontFamily:"'Segoe UI', system-ui, sans-serif",
       background: bg === "deep" ? "linear-gradient(135deg,#0f0a1e 0%,#1e1b4b 55%,#0f172a 100%)" : "#fff",
-      ...(center ? { display:"flex", alignItems:"center", justifyContent:"center", padding:"2rem" } : {}),
+      ...(center ? { display:"flex", alignItems:"center", justifyContent:"center", padding:"2.5rem 1.5rem" } : {}),
       ...style,
     }}>
       {children}
@@ -876,8 +930,8 @@ function Screen({ children, center, bg, className, style = {} }) {
 
 function Card({ children, style = {} }) {
   return (
-    <div style={{ background:"rgba(255,255,255,0.05)", borderRadius:22, padding:"2.25rem 2rem",
-      border:"1px solid rgba(255,255,255,0.09)", display:"flex", flexDirection:"column", gap:"1.25rem", ...style }}>
+    <div style={{ background:"rgba(255,255,255,0.05)", borderRadius:22, padding:"2.5rem 2.25rem",
+      border:"1px solid rgba(255,255,255,0.09)", display:"flex", flexDirection:"column", gap:"1.75rem", ...style }}>
       {children}
     </div>
   );
@@ -918,7 +972,7 @@ function Avatar({ name, size = 36, style = {} }) {
 
 function SettingBlock({ label, desc, children }) {
   return (
-    <div style={{ marginBottom:"1.75rem" }}>
+    <div style={{ marginBottom:"2.25rem" }}>
       <label style={{ color:"#a78bfa", fontWeight:700, fontSize:"0.95rem", display:"block", marginBottom:4 }}>{label}</label>
       {desc && <p style={{ color:"#64748b", fontSize:"0.8rem", margin:"0 0 0.75rem" }}>{desc}</p>}
       {children}
@@ -985,11 +1039,11 @@ const S = {
   bigNum:     { fontSize:"3.5rem", fontWeight:900, color:"#818cf8", letterSpacing:"-0.03em", lineHeight:1 },
   slider:     { width:"100%", accentColor:"#7c3aed", marginTop:"0.5rem", cursor:"pointer" },
   card:       { background:"rgba(255,255,255,0.05)", borderRadius:20, padding:"2rem", border:"1px solid rgba(255,255,255,0.09)" },
-  input:      { width:"100%", padding:"0.85rem 1rem", borderRadius:12, border:"2px solid rgba(255,255,255,0.1)",
+  input:      { width:"100%", padding:"1rem 1.25rem", borderRadius:12, border:"2px solid rgba(255,255,255,0.1)",
                 background:"rgba(255,255,255,0.05)", color:"#e2e8f0", fontSize:"1rem", outline:"none",
                 boxSizing:"border-box", transition:"border-color 0.15s" },
   playerChip: { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:12,
-                padding:"0.5rem 0.9rem", display:"flex", alignItems:"center", gap:8 },
+                padding:"0.65rem 1.1rem", display:"flex", alignItems:"center", gap:10 },
   roundBadge: { background:"rgba(124,58,237,0.2)", border:"1px solid rgba(124,58,237,0.4)", color:"#a78bfa",
                 padding:"0.4rem 1rem", borderRadius:999, fontWeight:700, whiteSpace:"nowrap", fontSize:"0.9rem" },
   answerBtn:  { width:"100%", padding:"1.25rem 1.5rem", borderRadius:18, border:"none", cursor:"pointer",
@@ -1009,6 +1063,55 @@ const S = {
 const GLOBAL_CSS = `
   @keyframes bob    { from { transform: translateY(0);    } to { transform: translateY(-10px); } }
   @keyframes bounce { from { transform: translateY(0);    } to { transform: translateY(-8px);  } }
+  @keyframes popIn  { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes letterWavePurple {
+    0%, 100% {
+      transform: translateY(0px);
+      text-shadow: 0 0 40px rgba(129,140,248,0.4);
+    }
+    50% {
+      transform: translateY(-26px);
+      text-shadow:
+        0 0 50px rgba(129,140,248,0.7),
+        0  6px 0   rgba(129,140,248,0.75),
+        0 12px 0   rgba(129,140,248,0.55),
+        0 18px 2px rgba(129,140,248,0.35),
+        0 24px 5px rgba(129,140,248,0.18),
+        0 30px 10px rgba(129,140,248,0.08),
+        0 36px 18px rgba(129,140,248,0.03);
+    }
+  }
+  @keyframes letterWaveGrey {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-26px);
+      text-shadow:
+        0  6px 0   rgba(148,163,184,0.65),
+        0 12px 0   rgba(148,163,184,0.45),
+        0 18px 2px rgba(148,163,184,0.28),
+        0 24px 5px rgba(148,163,184,0.13),
+        0 30px 10px rgba(148,163,184,0.05);
+    }
+  }
+  @keyframes letterWaveGreen {
+    0%, 100% {
+      transform: translateY(0px);
+      text-shadow: 0 0 40px rgba(52,211,153,0.4);
+    }
+    50% {
+      transform: translateY(-26px);
+      text-shadow:
+        0 0 50px rgba(52,211,153,0.7),
+        0  6px 0   rgba(52,211,153,0.75),
+        0 12px 0   rgba(52,211,153,0.55),
+        0 18px 2px rgba(52,211,153,0.35),
+        0 24px 5px rgba(52,211,153,0.18),
+        0 30px 10px rgba(52,211,153,0.08),
+        0 36px 18px rgba(52,211,153,0.03);
+    }
+  }
   input:focus { border-color: #7c3aed !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
   button:active { transform: scale(0.97) !important; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
